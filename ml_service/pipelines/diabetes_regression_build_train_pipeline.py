@@ -12,6 +12,8 @@ import os
 
 def main():
     e = Env()
+    print(f"{e.workspace_name}")
+    print(f"{e.resource_group}")
     # Get Azure machine learning workspace
     aml_workspace = Workspace.get(
         name=e.workspace_name,
@@ -170,7 +172,7 @@ def main():
     published_pipeline = train_pipeline.publish(
         name=e.pipeline_name,
         description="Model training/retraining pipeline",
-        version=e.build_id,
+        version=e.build_id
     )
     print(f"Published pipeline: {published_pipeline.name}")
     print(f"for build {published_pipeline.version}")
