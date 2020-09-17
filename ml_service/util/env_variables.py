@@ -22,6 +22,7 @@ class Env:
     app_secret: Optional[str] = os.environ.get("SP_APP_SECRET")
     vm_size: Optional[str] = os.environ.get("AML_COMPUTE_CLUSTER_CPU_SKU")
     compute_name: Optional[str] = os.environ.get("AML_COMPUTE_CLUSTER_NAME")
+    appinsights_instrumentation_key: Optional[str] = os.environ.get("APPINSIGHTS_INSTRUMENTATION_KEY")
     vm_priority: Optional[str] = os.environ.get(
         "AML_CLUSTER_PRIORITY", "lowpriority"
     )  # NOQA: E501
