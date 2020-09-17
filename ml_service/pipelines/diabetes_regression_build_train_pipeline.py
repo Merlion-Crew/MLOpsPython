@@ -9,23 +9,27 @@ from ml_service.util.env_variables import Env
 from ml_service.util.manage_environment import get_environment
 import os
 
+from ml_service.util.logger import setup_logging
+import logging
 
 def main():
     e = Env()
+    setup_logging(False)
+
     # Get Azure machine learning workspace
     aml_workspace = Workspace.get(
         name=e.workspace_name,
         subscription_id=e.subscription_id,
         resource_group=e.resource_group,
     )
-    print("get_workspace:")
-    print(aml_workspace)
+    logging.info("get_workspace:")
+    logging.info(aml_workspace)
 
     # Get Azure machine learning cluster
     aml_compute = get_compute(aml_workspace, e.compute_name, e.vm_size)
     if aml_compute is not None:
-        print("aml_compute:")
-        print(aml_compute)
+        logging.info("aml_compute:")
+        logging.info(aml_compute)
 
     # Create a reusable Azure ML environment
     environment = get_environment(
@@ -124,7 +128,7 @@ def main():
         runconfig=run_config,
         allow_reuse=True,
     )
-    print("Step Train created")
+    logging.info("Step Train created")
 
     evaluate_step = PythonScriptStep(
         name="Evaluate Model ",
@@ -152,15 +156,15 @@ def main():
         runconfig=run_config,
         allow_reuse=False,
     )
-    print("Step Register created")
+    logging.info("Step Register created")
     # Check run_evaluation flag to include or exclude evaluation step.
     if (e.run_evaluation).lower() == "true":
-        print("Include evaluation step before register step.")
+        logging.info("Include evaluation step before register step.")
         evaluate_step.run_after(train_step)
         register_step.run_after(evaluate_step)
         steps = [train_step, evaluate_step, register_step]
     else:
-        print("Exclude evaluation step and directly run register step.")
+        logging.info("Exclude evaluation step and directly run register step.")
         register_step.run_after(train_step)
         steps = [train_step, register_step]
 
@@ -172,8 +176,8 @@ def main():
         description="Model training/retraining pipeline",
         version=e.build_id,
     )
-    print(f"Published pipeline: {published_pipeline.name}")
-    print(f"for build {published_pipeline.version}")
+    logging.info(f"Published pipeline: {published_pipeline.name}")
+    logging.info(f"for build {published_pipeline.version}")
 
 
 if __name__ == "__main__":
