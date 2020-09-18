@@ -6,9 +6,9 @@ pipeline {
         MODEL_NAME = 'diabetes_regression_model.pkl'
         MODEL_VERSION = '1'
         SCORE_SCRIPT = 'scoring/score.py'
-        RESOURCE_GROUP = 'upskill_devops_rg'
-        WORKSPACE_NAME = 'mlops-upskill'
-        ML_CONTAINER_REGISTRY   = 'b8becdb6f4794d62a5a153653ba7bcdc'
+        RESOURCE_GROUP = "${RESOURCE_GROUP}"
+        WORKSPACE_NAME = "${WORKSPACE_NAME}"
+        ML_CONTAINER_REGISTRY   = "${ML_CONTAINER_REGISTRY}"
     }
     stages {
         stage('initialize') {
