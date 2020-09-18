@@ -17,7 +17,7 @@ def setup_logging(log_to_local_only: bool = False, env: Env = None):
     """
     if env is None:
         env = Env()
-    print(env)
+    
     logging.config.dictConfig(logging_config)
     logger = getLogger()
 
