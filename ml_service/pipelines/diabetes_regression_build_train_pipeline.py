@@ -48,6 +48,7 @@ def main():
     run_config.environment.environment_variables[
         "DATASTORE_NAME"
     ] = datastore_name  # NOQA: E501
+    run_config.environment.environment_variables["APPINSIGHTS_INSTRUMENTATION_KEY"] = e.appinsights_instrumentation_key
 
     model_name_param = PipelineParameter(name="model_name", default_value=e.model_name)  # NOQA: E501
     dataset_version_param = PipelineParameter(
@@ -104,7 +105,7 @@ def main():
     pipeline_data = PipelineData(
         "pipeline_data", datastore=aml_workspace.get_default_datastore()
     )
-
+    
     train_step = PythonScriptStep(
         name="Train Model",
         script_name=e.train_script_path,
