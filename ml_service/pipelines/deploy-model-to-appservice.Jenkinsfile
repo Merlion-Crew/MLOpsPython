@@ -41,6 +41,17 @@ pipeline {
                 sh '''#!/bin/bash -ex
                     cp ./ml_service/util/scoring/* $PACKAGE_FOLDER/
                     cp ./diabetes_regression/$SCORE_SCRIPT $PACKAGE_FOLDER/
+                    cd $PACKAGE_FOLDER/
+                    zip -r deployment-${BUILD_NUMBER}.zip .
+                '''
+            }
+        }
+        stage('prod') {
+            steps {
+                echo 'Deploying!'
+                sh '''
+                    cd $PACKAGE_FOLDER/
+                    curl -X POST -u '\$'$AZURE_APPSERVICE_NAME:$AZURE_APPSERVICE_DEPLOYMENT_PASSWORD --data-binary @"deployment-${BUILD_NUMBER}.zip" https://$AZURE_APPSERVICE_NAME.scm.azurewebsites.net/api/zipdeploy
                 '''
             }
         }
