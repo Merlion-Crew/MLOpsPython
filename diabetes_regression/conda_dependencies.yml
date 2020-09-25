@@ -37,3 +37,6 @@ dependencies:
 
       # MLOps with R
       - azure-storage-blob
+
+      - opencensus==0.7.10
+      - opencensus-ext-azure==1.0.4
