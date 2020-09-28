@@ -10,27 +10,30 @@ pipeline {
             args "--user root --privileged"
         }
     }
+    parameters {
+        string(name: 'WORKSPACE_NAME', defaultValue: 'swsundar-ml', description: 'Azure Machine Learning Workspace Name')
+        string(name: 'RESOURCE_GROUP', defaultValue: 'swsundar-upskill', description: 'Azure Resource Group Name')
+        string(name: 'SUBSCRIPTION_ID', defaultValue: '371e8e7f-bce0-4db0-9df5-d88805b41101', description: 'Azure Subscription ID')
+        string(name: 'SERVICE_PRINCIPAL_NAME', defaultValue: 'swsundar-azure-spn', description: 'Azure Service Principal Name')
+    }
     stages {
         stage('Build, Publish and Run AML Pipeline') {
             environment {
-                WORKSPACE_NAME = 'swsundar-ml'
-                SUBSCRIPTION_ID = '371e8e7f-bce0-4db0-9df5-d88805b41101'
-                RESOURCE_GROUP = 'swsundar-upskill'
+                BUILD_BUILDID = "${env.BUILD_ID}"
             }
             steps {
-                checkout([$class: 'GitSCM', branches: [[name: '*/master']],
+                checkout([$class: 'GitSCM', branches: [[name: '*/jenkins_ci']],
                     userRemoteConfigs: [[url: 'https://github.com/Merlion-Crew/MLOpsPython.git/']]])
 
-                withCredentials([azureServicePrincipal('swsundar-azure-spn')]) {
-                    sh '''
+                withCredentials([azureServicePrincipal("${params.SERVICE_PRINCIPAL_NAME}")]) {
+                    sh '''#!/bin/bash
                         az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET -t $AZURE_TENANT_ID
-                        az account set -s $SUBSCRIPTION_ID
+                        az account set -s $AZURE_SUBSCRIPTION_ID
                     '''
                 }
-
                 script {
                     echo "Load the variables from the properties file and set them as environment variables\n"
-                    def props = readProperties file: './jenkins-pipelines/.properties'
+                    def props = readProperties file: '.properties'
                     keys= props.keySet()
                     for(key in keys) {
                         value = props["${key}"]
@@ -38,15 +41,24 @@ pipeline {
                     }
                     echo "Environment variables loaded"
 
+                    echo "Initialing Build: ${env.BUILD_BUILDID}"
+
                     //Build the Azure ML Pipeline
                     echo "====== Publish the Azure ML Pipeline ======"
                     sh 'python -m ml_service.pipelines.diabetes_regression_build_train_pipeline'
 
                     //Run the Azure ML Pipeline and save the pipeline run id in a text file
                     echo "====== Run the Azure ML Pipeline ======\n"
-                    sh 'python -m ml_service.pipelines.run_train_pipeline --output_pipeline_id_file "pipeline_id.txt"'
+                    sh 'python -m ml_service.pipelines.run_train_pipeline --output_pipeline_run_id "pipeline_run_id.txt"'
 
-                    //TODO: Fetch the status of the pipeline run
+                    //Get Pipeline ID
+                    def aml_pipeline_id = sh (script: 'cat pipeline_id.txt',
+                                              returnStdout: true).trim()
+                    echo "AML Pipeline ID: ${aml_pipeline_id}"
+
+                    //Check the status of Azure ML Pipeline
+                    echo "====== Check the Status of the Azure ML Pipeline ====== \n"
+                    sh 'python -m ml_service.pipelines.check_aml_pipeline_status --run_id ${aml_pipeline_id}'
                 }
             }
         }

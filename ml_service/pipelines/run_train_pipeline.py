@@ -14,6 +14,12 @@ def main():
         help="Name of a file to write pipeline ID to"
     )
     parser.add_argument(
+        "--output_pipeline_run_id",
+        type=str,
+        default="pipeline_run_id.txt",
+        help="Name of a file to write the pipeline Run ID to"
+    )
+    parser.add_argument(
         "--skip_train_execution",
         action="store_true",
         help=("Do not trigger the execution. "
@@ -67,6 +73,11 @@ def main():
                 pipeline_parameters=pipeline_parameters)
 
             print("Pipeline run initiated ", run.id)
+
+            # Save the Pipeline Run ID for checking the pipeline status
+            if args.output_pipeline_run_id is not None:
+                with open(args.output_pipeline_run_id, "w") as out_file:
+                    out_file.write(run.id)
 
 
 if __name__ == "__main__":
