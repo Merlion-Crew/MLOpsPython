@@ -52,13 +52,32 @@ pipeline {
                     sh 'python -m ml_service.pipelines.run_train_pipeline --output_pipeline_run_id "pipeline_run_id.txt"'
 
                     //Get Pipeline ID
-                    def aml_pipeline_id = sh (script: 'cat pipeline_id.txt',
+                    def aml_run_id = sh (script: 'cat pipeline_run_id.txt',
                                               returnStdout: true).trim()
-                    echo "AML Pipeline ID: ${aml_pipeline_id}"
+                    echo "AML Pipeline Run ID: ${aml_run_id}"
 
                     //Check the status of Azure ML Pipeline
                     echo "====== Check the Status of the Azure ML Pipeline ====== \n"
-                    sh 'python -m ml_service.pipelines.check_aml_pipeline_status --run_id ${aml_pipeline_id}'
+                    while (true) {
+                        def run_status = sh (script: "az ml run show --run ${aml_run_id} -w ${params.WORKSPACE_NAME} -g ${params.RESOURCE_GROUP} -e ${env.EXPERIMENT_NAME} | grep status",
+                                             returnStdout: true).trim()
+                        echo "Pipeline Status: ${run_status}"
+                        if (run_status.contains("Failed")) {
+                            error("Pipeline Run Failed")
+                            break;
+                        }
+                        if (run_status.contains("Canceled")) {
+                            currentBuild.result = 'ABORTED'
+                            error("Pipeline Run Canceled")
+                            break;
+                        }
+                        if (run_status.contains("Finished")) {
+                            echo "Pipeline Run Succeeded"
+                            break;
+                        }
+                        sleep(5)
+                    }
+
                 }
             }
         }
