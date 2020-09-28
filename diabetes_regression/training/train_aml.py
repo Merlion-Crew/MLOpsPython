@@ -123,7 +123,6 @@ def main():
         train_args = {}
 
     # Log the training parameters
-    logging.info(f"Parameters: {train_args}")
     for (k, v) in train_args.items():
         run.log(k, v)
         run.parent.log(k, v)
