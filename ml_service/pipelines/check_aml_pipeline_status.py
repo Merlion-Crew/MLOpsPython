@@ -34,7 +34,7 @@ def main():
         status = run.get_status()
         print(status)
 
-        if status == "Failed" or status == "Finished":
+        if status == "Failed" or status == "Finished" or status == "Canceled":
              print(f"Run {args.run_id} has been completed with status: {status}")
              break
 
