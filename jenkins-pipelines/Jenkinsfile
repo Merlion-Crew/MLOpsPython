@@ -10,12 +10,16 @@ pipeline {
             args "--user root --privileged"
         }
     }
+    parameters {
+        string(name: 'WORKSPACE_NAME', defaultValue: 'swsundar-ml', description: 'Azure Machine Learning Workspace Name')
+        string(name: 'SUBSCRIPTION_ID', defaultValue: '371e8e7f-bce0-4db0-9df5-d88805b41101', description: 'Azure Subscription ID')
+        string(name: 'RESOURCE_GROUP', defaultValue: 'swsundar-upskill', description: 'Azure Resource Group Name')
+        string(name: 'SERVICE_PRINCIPAL_NAME', defaultValue: 'swsundar-azure-spn', description: 'Azure Service Principal Name')
+    }
     stages {
         stage('Build, Publish and Run AML Pipeline') {
             environment {
-                WORKSPACE_NAME = 'swsundar-ml'
-                SUBSCRIPTION_ID = '371e8e7f-bce0-4db0-9df5-d88805b41101'
-                RESOURCE_GROUP = 'swsundar-upskill'
+                BUILD_BUILDID = "${env.BUILD_ID}"
             }
             steps {
                 checkout([$class: 'GitSCM', branches: [[name: '*/master']],
@@ -30,7 +34,7 @@ pipeline {
 
                 script {
                     echo "Load the variables from the properties file and set them as environment variables\n"
-                    def props = readProperties file: './jenkins-pipelines/.properties'
+                    def props = readProperties file: '.properties'
                     keys= props.keySet()
                     for(key in keys) {
                         value = props["${key}"]
