@@ -1,13 +1,13 @@
 pipeline {
     agent { label 'master' }
     environment {
-        ML_IMAGE_FOLDER         = 'imagefiles'
-        IMAGE_NAME              = 'mlmodelimage'
-        MODEL_NAME = 'diabetes_regression_model.pkl'
-        MODEL_VERSION = '1'
-        SCORE_SCRIPT = 'scoring/score.py'
-        RESOURCE_GROUP = "${RESOURCE_GROUP}"
-        WORKSPACE_NAME = "${WORKSPACE_NAME}"
+        ML_IMAGE_FOLDER = 'imagefiles'
+        IMAGE_NAME      = 'mlmodelimage'
+        MODEL_NAME      = "${MODEL_NAME}"
+        MODEL_VERSION   = "${MODEL_VERSION}"
+        SCORE_SCRIPT    = 'scoring/score.py'
+        RESOURCE_GROUP  = "${RESOURCE_GROUP}"
+        WORKSPACE_NAME  = "${WORKSPACE_NAME}"
         ML_CONTAINER_REGISTRY   = "${ML_CONTAINER_REGISTRY}"
     }
     stages {
@@ -51,6 +51,20 @@ pipeline {
                     sh '''#!/bin/bash -ex
                         docker login -u $USERNAME --password $PASSWORD https://$NEXUS_DOCKER_REGISTRY_URL
                         docker push $NEXUS_DOCKER_REGISTRY_URL/$IMAGE_NAME:$BUILD_ID
+                    '''
+                }
+            }
+        }
+        stage('deploy') {
+            steps {
+                echo "Deploy to Azure App Service"
+
+                withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'nexus-docker-repo',
+                    usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
+                        
+                    sh '''#!/bin/bash -ex
+                        az webapp config container set --name $AZURE_APPSERVICE_NAME --resource-group $APPSERVICE_RESOURCE_GROUP --docker-custom-image-name $NEXUS_DOCKER_REGISTRY_URL/$IMAGE_NAME:$BUILD_ID --docker-registry-server-url https://$NEXUS_DOCKER_REGISTRY_URL --docker-registry-server-user $USERNAME --docker-registry-server-password $PASSWORD
+                        az webapp restart --name $AZURE_APPSERVICE_NAME --resource-group $APPSERVICE_RESOURCE_GROUP
                     '''
                 }
             }
