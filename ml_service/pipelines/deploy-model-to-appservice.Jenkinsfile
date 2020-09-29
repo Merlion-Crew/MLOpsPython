@@ -24,10 +24,8 @@ pipeline {
         stage('download_model') {
             steps {
                 echo "Downloading..."
-                /*checkout scm*/
-                checkout([$class: 'GitSCM', branches: [[name: '*/master']],
-                    userRemoteConfigs: [[url: 'https://github.com/Merlion-Crew/MLOpsPython.git/']]])
-
+                checkout scm
+                
                 withCredentials([azureServicePrincipal("${AZURE_SP}")]) {
                     sh '''#!/bin/bash -ex
                         az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET -t $AZURE_TENANT_ID
