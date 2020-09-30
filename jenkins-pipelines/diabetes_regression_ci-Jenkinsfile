@@ -1,0 +1,58 @@
+/*
+* CI Pipeline to build, publish and run the ML Training Pipeline.
+* Pipeline uses docker image as an agent.
+*/
+pipeline {
+    agent {
+        docker {
+            //Azure CLI commands require root privileges
+            image 'mcr.microsoft.com/mlops/python:latest'
+            args "--user root --privileged"
+        }
+    }
+    parameters {
+        string(name: 'WORKSPACE_NAME', defaultValue: 'swsundar-ml', description: 'Azure Machine Learning Workspace Name')
+        string(name: 'SUBSCRIPTION_ID', defaultValue: '371e8e7f-bce0-4db0-9df5-d88805b41101', description: 'Azure Subscription ID')
+        string(name: 'RESOURCE_GROUP', defaultValue: 'swsundar-upskill', description: 'Azure Resource Group Name')
+        string(name: 'SERVICE_PRINCIPAL_NAME', defaultValue: 'swsundar-azure-spn', description: 'Azure Service Principal Name')
+    }
+    stages {
+        stage('Build, Publish and Run AML Pipeline') {
+            environment {
+                BUILD_BUILDID = "${env.BUILD_ID}"
+            }
+            steps {
+                checkout([$class: 'GitSCM', branches: [[name: '*/master']],
+                    userRemoteConfigs: [[url: 'https://github.com/Merlion-Crew/MLOpsPython.git/']]])
+
+                withCredentials([azureServicePrincipal("${params.SERVICE_PRINCIPAL_NAME}")]) {
+                    sh '''
+                        az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET -t $AZURE_TENANT_ID
+                        az account set -s $AZURE_SUBSCRIPTION_ID
+                    '''
+                }
+
+                script {
+                    echo "Load the variables from the properties file and set them as environment variables\n"
+                    def props = readProperties file: '.properties'
+                    keys= props.keySet()
+                    for(key in keys) {
+                        value = props["${key}"]
+                        env."${key}" = "${value}"
+                    }
+                    echo "Environment variables loaded"
+
+                    //Build the Azure ML Pipeline
+                    echo "====== Publish the Azure ML Pipeline ======"
+                    sh 'python -m ml_service.pipelines.diabetes_regression_build_train_pipeline'
+
+                    //Run the Azure ML Pipeline and save the pipeline run id in a text file
+                    echo "====== Run the Azure ML Pipeline ======\n"
+                    sh 'python -m ml_service.pipelines.run_train_pipeline --output_pipeline_id_file "pipeline_id.txt"'
+
+                    //TODO: Fetch the status of the pipeline run
+                }
+            }
+        }
+    }
+}
