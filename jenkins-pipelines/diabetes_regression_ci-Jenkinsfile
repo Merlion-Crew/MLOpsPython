@@ -2,35 +2,32 @@
 * CI Pipeline to build, publish and run the ML Training Pipeline.
 * Pipeline uses docker image as an agent.
 */
+aml_run_id = "none"
 pipeline {
     agent {
         docker {
             //Azure CLI commands require root privileges
             image 'mcr.microsoft.com/mlops/python:latest'
+            label 'master'
             args "--user root --privileged"
         }
     }
     parameters {
         string(name: 'WORKSPACE_NAME', defaultValue: 'swsundar-ml', description: 'Azure Machine Learning Workspace Name')
-        string(name: 'RESOURCE_GROUP', defaultValue: 'swsundar-upskill', description: 'Azure Resource Group Name')
         string(name: 'SUBSCRIPTION_ID', defaultValue: '371e8e7f-bce0-4db0-9df5-d88805b41101', description: 'Azure Subscription ID')
+        string(name: 'RESOURCE_GROUP', defaultValue: 'swsundar-upskill', description: 'Azure Resource Group Name')
         string(name: 'SERVICE_PRINCIPAL_NAME', defaultValue: 'swsundar-azure-spn', description: 'Azure Service Principal Name')
     }
+    environment {
+        //Pass the Jenkins' Build ID as an environment variable for tracking
+        BUILD_BUILDID = "${env.BUILD_ID}"
+    }
     stages {
-        stage('Build, Publish and Run AML Pipeline') {
-            environment {
-                BUILD_BUILDID = "${env.BUILD_ID}"
-            }
+        stage('Build and Publish AML Pipeline') {
             steps {
                 checkout([$class: 'GitSCM', branches: [[name: '*/master']],
                     userRemoteConfigs: [[url: 'https://github.com/Merlion-Crew/MLOpsPython.git/']]])
 
-                withCredentials([azureServicePrincipal("${params.SERVICE_PRINCIPAL_NAME}")]) {
-                    sh '''
-                        az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET -t $AZURE_TENANT_ID
-                        az account set -s $AZURE_SUBSCRIPTION_ID
-                    '''
-                }
                 script {
                     echo "Load the variables from the properties file and set them as environment variables\n"
                     def props = readProperties file: '.properties'
@@ -41,54 +38,82 @@ pipeline {
                     }
                     echo "Environment variables loaded"
 
-                    echo "Initialing Build: ${env.BUILD_BUILDID}"
+                    echo "Authenticating connectivity to Azure..."
+
+                    withCredentials([azureServicePrincipal("${params.SERVICE_PRINCIPAL_NAME}")]) {
+                        sh '''
+                            az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET -t $AZURE_TENANT_ID
+                            az account set -s $AZURE_SUBSCRIPTION_ID
+                        '''
+                    }
 
                     //Build the Azure ML Pipeline
                     echo "====== Publish the Azure ML Pipeline ======"
                     sh 'python -m ml_service.pipelines.diabetes_regression_build_train_pipeline'
-
+                }
+            }
+        }
+        stage('Run AML Pipeline') {
+            steps {
+                script {
                     //Run the Azure ML Pipeline and save the pipeline run id in a text file
                     echo "====== Run the Azure ML Pipeline ======\n"
                     sh 'python -m ml_service.pipelines.run_train_pipeline --output_pipeline_run_id "pipeline_run_id.txt"'
-
+                }
+                script {
                     //Get Pipeline Run ID
-                    def aml_run_id = sh (script: 'cat pipeline_run_id.txt',
-                                        returnStdout: true).trim()
+                    aml_run_id = sh (script: 'cat pipeline_run_id.txt',
+                                    returnStdout: true).trim()
                     echo "AML Pipeline Run ID: ${aml_run_id}"
+                }
+            }
+        }
 
+        stage('Monitor AML Pipeline') {
+            steps {
+                script {
                     //Install the Azure CLI Extension
                     sh "az extension add -n azure-cli-ml"
 
                     //Check the status of Azure ML Pipeline
                     echo "====== Check the Status of the Azure ML Pipeline ====== \n"
-                    while (true) {
-                        def run_status = sh (script: "az ml run show --run ${aml_run_id} -w ${params.WORKSPACE_NAME} -g ${params.RESOURCE_GROUP} -e ${env.EXPERIMENT_NAME} | grep status",
-                                             returnStdout: true).trim()
-                        echo "Pipeline Status: ${run_status}"
-                        if (run_status.contains("Failed")) {
-                            error("Pipeline Run Failed")
-                            break;
+
+                    timeout(time: 60, unit: 'MINUTES') {
+                        while (true) {
+                            def run_status = sh (script: "az ml run show --run ${aml_run_id} -w ${params.WORKSPACE_NAME} -g ${params.RESOURCE_GROUP} -e ${env.EXPERIMENT_NAME} | grep status",
+                                                 returnStdout: true).trim()
+                            echo "Pipeline Status: ${run_status}"
+
+                            //CASE 1: Error occured while running the AML pipeline
+                            if (run_status.contains("Failed")) {
+                                error("Pipeline Run Failed")
+                                break;
+                            }
+
+                            //CASE 2: Newly trained model did not outperform the last registered model, resulting in evaluation failure
+                            // Registration of the AML model is canceled and hence Aborting the Jenkins CI pipeline
+                            if (run_status.contains("Canceled")) {
+                                currentBuild.result = 'ABORTED'
+                                error("Pipeline Run Canceled")
+                                break;
+                            }
+
+                            //CASE 3: Newly trained model outperformed the last registered model.
+                            if (run_status.contains("Finished") || run_status.contains("Completed")) {
+                                echo "Pipeline Run Succeeded."
+                                //Save the model name as a build artifact to be passed on for deployment
+                                sh "echo ${env.MODEL_NAME} > model_name.txt"
+                                break;
+                            }
+                            sleep(30)
                         }
-                        if (run_status.contains("Canceled")) {
-                            currentBuild.result = 'ABORTED'
-                            error("Pipeline Run Canceled")
-                            break;
-                        }
-                        if (run_status.contains("Finished")) {
-                            echo "Pipeline Run Succeeded"
-                            break;
-                        }
-                        sleep(5)
                     }
-
-
                 }
             }
         }
     }
     post {
         always {
-            sh "echo ${env.MODEL_NAME} > model_name.txt"
             archiveArtifacts artifacts: 'model_name.txt', onlyIfSuccessful: true
         }
     }
