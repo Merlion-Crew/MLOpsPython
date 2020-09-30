@@ -23,9 +23,9 @@ pipeline {
         stage('generate_dockerfile') {
             steps {
                 echo "Hello build ${env.BUILD_ID}"
-                /*checkout scm*/
-                checkout([$class: 'GitSCM', branches: [[name: '*/ml_model_uc76']],
-                    userRemoteConfigs: [[url: 'https://github.com/Merlion-Crew/MLOpsPython.git/']]])
+                checkout scm
+                //checkout([$class: 'GitSCM', branches: [[name: '*/ml_model_uc76']],
+                //    userRemoteConfigs: [[url: 'https://github.com/Merlion-Crew/MLOpsPython.git/']]])
 
                 withCredentials([azureServicePrincipal("${AZURE_SP}")]) {
                     sh '''#!/bin/bash -ex
