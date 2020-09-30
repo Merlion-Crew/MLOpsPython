@@ -175,7 +175,7 @@ def main():
     published_pipeline = train_pipeline.publish(
         name=e.pipeline_name,
         description="Model training/retraining pipeline",
-        version=e.build_id,
+        version=e.build_id
     )
     logging.info(f"Published pipeline: {published_pipeline.name}")
     logging.info(f"for build {published_pipeline.version}")
