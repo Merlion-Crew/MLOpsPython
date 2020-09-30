@@ -32,13 +32,10 @@ pipeline {
                         az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET -t $AZURE_TENANT_ID
                         az account set -s $AZURE_SUBSCRIPTION_ID
                         SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID
+                        source /home/azureuser/anaconda3/bin/activate mlopspython_ci
+                        python3 -m ml_service.util.create_scoring_image
                     '''
                 }
-                
-                sh '''#!/bin/bash -ex
-                    source /home/azureuser/anaconda3/bin/activate mlopspython_ci
-                    python3 -m ml_service.util.create_scoring_image
-                '''
             }
         }
         stage('build_and_push') {
