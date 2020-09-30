@@ -22,7 +22,7 @@ pipeline {
                 BUILD_BUILDID = "${env.BUILD_ID}"
             }
             steps {
-                checkout([$class: 'GitSCM', branches: [[name: '*/jenkins_ci']],
+                checkout([$class: 'GitSCM', branches: [[name: '*/master']],
                     userRemoteConfigs: [[url: 'https://github.com/Merlion-Crew/MLOpsPython.git/']]])
 
                 withCredentials([azureServicePrincipal("${params.SERVICE_PRINCIPAL_NAME}")]) {
@@ -51,10 +51,13 @@ pipeline {
                     echo "====== Run the Azure ML Pipeline ======\n"
                     sh 'python -m ml_service.pipelines.run_train_pipeline --output_pipeline_run_id "pipeline_run_id.txt"'
 
-                    //Get Pipeline ID
+                    //Get Pipeline Run ID
                     def aml_run_id = sh (script: 'cat pipeline_run_id.txt',
-                                              returnStdout: true).trim()
+                                        returnStdout: true).trim()
                     echo "AML Pipeline Run ID: ${aml_run_id}"
+
+                    //Install the Azure CLI Extension
+                    sh "az extension add -n azure-cli-ml"
 
                     //Check the status of Azure ML Pipeline
                     echo "====== Check the Status of the Azure ML Pipeline ====== \n"
@@ -78,8 +81,15 @@ pipeline {
                         sleep(5)
                     }
 
+
                 }
             }
+        }
+    }
+    post {
+        always {
+            sh "echo ${env.MODEL_NAME} > model_name.txt"
+            archiveArtifacts artifacts: 'model_name.txt', onlyIfSuccessful: true
         }
     }
 }
