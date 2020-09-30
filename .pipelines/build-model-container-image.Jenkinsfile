@@ -27,13 +27,15 @@ pipeline {
                 checkout([$class: 'GitSCM', branches: [[name: '*/ml_model_uc76']],
                     userRemoteConfigs: [[url: 'https://github.com/Merlion-Crew/MLOpsPython.git/']]])
 
-                withCredentials([azureServicePrincipal("${AZURE_SP}")]) {
+                /*withCredentials([azureServicePrincipal("${AZURE_SP}")]) {
                     sh '''#!/bin/bash -ex
                         az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET -t $AZURE_TENANT_ID
                         az account set -s $AZURE_SUBSCRIPTION_ID
                         SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID
                     '''
-                }
+                }*/
+
+                azureCLI commands: [[exportVariablesString: '/id|SUBSCRIPTION_ID', script: "az account show"]], principalCredentialId: "${AZURE_SP}"
                 
                 sh '''#!/bin/bash -ex
                     echo $SUBSCRIPTION_ID
