@@ -20,28 +20,42 @@ pipeline {
                 }
             }
         }
+        stage ('Download build artifacts (get model name)') {
+            environment {
+                BUILD_ARTIFACT_FOLDER = "download"
+            }
+            steps {
+                script {
+                    copyArtifacts(projectName: "${env.build_job_name}", selector: buildParameter("ml_model_selector"), target: "${env.BUILD_ARTIFACT_FOLDER}");
+                    def  FILES_LIST = sh (script: "ls   '${env.BUILD_ARTIFACT_FOLDER}'", returnStdout: true).trim()
+                    //DEBUG
+                    echo "FILES_LIST : ${FILES_LIST}"
+                    MODEL_NAME = sh (script: "cat ${env.BUILD_ARTIFACT_FOLDER}/model_name.txt", 
+                                     returnStdout: true).trim()
+                    sh "echo ${MODEL_NAME}"
+                }
+            }
+        }
         stage('generate_dockerfile') {
             steps {
-                echo "Hello build ${env.BUILD_ID}"
-                //checkout scm
-                checkout([$class: 'GitSCM', branches: [[name: '*/ml_model_uc76']],
-                    userRemoteConfigs: [[url: 'https://github.com/Merlion-Crew/MLOpsPython.git/']]])
+                echo "Hello docker image build ${env.BUILD_ID}"
+                checkout scm
+                //checkout([$class: 'GitSCM', branches: [[name: '*/ml_model_uc81']],
+                //    userRemoteConfigs: [[url: 'https://github.com/Merlion-Crew/MLOpsPython.git/']]])
 
-                /*withCredentials([azureServicePrincipal("${AZURE_SP}")]) {
+                sh '''
+                    conda env create --file ./diabetes_regression/ci_dependencies.yml --force 
+                '''
+                
+                withCredentials([azureServicePrincipal("${AZURE_SP}")]) {
                     sh '''#!/bin/bash -ex
                         az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET -t $AZURE_TENANT_ID
                         az account set -s $AZURE_SUBSCRIPTION_ID
-                        SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID
+                        export SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID
+                        source /home/azureuser/anaconda3/bin/activate mlopspython_ci
+                        python3 -m ml_service.util.create_scoring_image
                     '''
-                }*/
-
-                azureCLI commands: [[exportVariablesString: '/id|SUBSCRIPTION_ID', script: "az account show"]], principalCredentialId: "${AZURE_SP}"
-                
-                sh '''#!/bin/bash -ex
-                    echo $SUBSCRIPTION_ID
-                    source /home/azureuser/anaconda3/bin/activate mlopspython_ci
-                    python3 -m ml_service.util.create_scoring_image
-                '''
+                }
             }
         }
         stage('build_and_push') {
