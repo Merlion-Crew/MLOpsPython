@@ -32,6 +32,7 @@ import json
 from train import split_data, train_model, get_model_metrics
 
 from util.logger import setup
+from util.metric_logger import MetricLogger
 import logging
 
 def register_dataset(
@@ -124,10 +125,12 @@ def main():
 
     # Log the training parameters
     logging.info(f"Parameters: ", extra={'custom_dimensions': train_args})
+    custom_dimension = {}
     for (k, v) in train_args.items():
         run.log(k, v)
         run.parent.log(k, v)
         logging.info(f"{k}: {v}")
+        custom_dimension[f'Parameter: {k}'] = v
 
     # Get the dataset
     if (dataset_name):
@@ -160,6 +163,10 @@ def main():
         run.log(k, v)
         run.parent.log(k, v)
         logging.info(f"{k}: {v}")
+        # Log this metric to the `customMetric` table of App insights
+        metric_logger = MetricLogger("Model metric: " + k)
+        metric_logger.set_customdimension(custom_dimension)
+        metric_logger.set_metric_value(float(v))
 
     # Pass model file to next step
     os.makedirs(step_output_path, exist_ok=True)
