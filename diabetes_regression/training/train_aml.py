@@ -31,6 +31,8 @@ import joblib
 import json
 from train import split_data, train_model, get_model_metrics
 
+from util.logger import setup
+import logging
 
 def register_dataset(
     aml_workspace: Workspace,
@@ -48,7 +50,8 @@ def register_dataset(
 
 
 def main():
-    print("Running train_aml.py")
+    setup()
+    logging.info("Running train_aml.py")
 
     parser = argparse.ArgumentParser("train")
     parser.add_argument(
@@ -93,12 +96,12 @@ def main():
 
     args = parser.parse_args()
 
-    print("Argument [model_name]: %s" % args.model_name)
-    print("Argument [step_output]: %s" % args.step_output)
-    print("Argument [dataset_version]: %s" % args.dataset_version)
-    print("Argument [data_file_path]: %s" % args.data_file_path)
-    print("Argument [caller_run_id]: %s" % args.caller_run_id)
-    print("Argument [dataset_name]: %s" % args.dataset_name)
+    logging.info("Argument [model_name]: %s" % args.model_name)
+    logging.info("Argument [step_output]: %s" % args.step_output)
+    logging.info("Argument [dataset_version]: %s" % args.dataset_version)
+    logging.info("Argument [data_file_path]: %s" % args.data_file_path)
+    logging.info("Argument [caller_run_id]: %s" % args.caller_run_id)
+    logging.info("Argument [dataset_name]: %s" % args.dataset_name)
 
     model_name = args.model_name
     step_output_path = args.step_output
@@ -120,10 +123,11 @@ def main():
         train_args = {}
 
     # Log the training parameters
-    print(f"Parameters: {train_args}")
+    logging.info(f"Parameters: ", extra={'custom_dimensions': train_args})
     for (k, v) in train_args.items():
         run.log(k, v)
         run.parent.log(k, v)
+        logging.info(f"{k}: {v}")
 
     # Get the dataset
     if (dataset_name):
@@ -155,6 +159,7 @@ def main():
     for (k, v) in metrics.items():
         run.log(k, v)
         run.parent.log(k, v)
+        logging.info(f"{k}: {v}")
 
     # Pass model file to next step
     os.makedirs(step_output_path, exist_ok=True)
@@ -167,7 +172,7 @@ def main():
     joblib.dump(value=model, filename=output_path)
 
     run.tag("run_type", value="train")
-    print(f"tags now present for run: {run.tags}")
+    logging.info(f"tags now present for run: {run.tags}")
 
     run.complete()
 
