@@ -2,7 +2,6 @@ pipeline {
     agent { label 'master' }
     environment {
         ML_IMAGE_FOLDER = 'imagefiles'
-        IMAGE_NAME      = 'mlmodelimage'
         MODEL_NAME      = "${MODEL_NAME}"
         SCORE_SCRIPT    = 'scoring/score.py'
         RESOURCE_GROUP  = "${RESOURCE_GROUP}"

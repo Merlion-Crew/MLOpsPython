@@ -1,12 +1,12 @@
 pipeline {
     agent { label 'master' }
     environment {
-        ML_IMAGE_FOLDER = 'imagefiles'
-        IMAGE_NAME      = 'mlmodelimage'
-        MODEL_NAME      = "${MODEL_NAME}"
-        SCORE_SCRIPT    = 'scoring/score.py'
-        RESOURCE_GROUP  = "${RESOURCE_GROUP}"
-        WORKSPACE_NAME  = "${WORKSPACE_NAME}"
+        ML_IMAGE_FOLDER         = 'imagefiles'
+        IMAGE_NAME              = "${DOCKER_IMAGE_REPO_NAME}"
+        MODEL_NAME              = "${MODEL_NAME}"
+        SCORE_SCRIPT            = 'scoring/score.py'
+        RESOURCE_GROUP          = "${RESOURCE_GROUP}"
+        WORKSPACE_NAME          = "${WORKSPACE_NAME}"
         ML_CONTAINER_REGISTRY   = "${ML_CONTAINER_REGISTRY}"
     }
     stages {
@@ -40,8 +40,6 @@ pipeline {
             steps {
                 echo "Hello docker image build ${env.BUILD_ID}"
                 checkout scm
-                //checkout([$class: 'GitSCM', branches: [[name: '*/ml_model_uc81']],
-                //    userRemoteConfigs: [[url: 'https://github.com/Merlion-Crew/MLOpsPython.git/']]])
 
                 sh '''
                     conda env create --file ./diabetes_regression/ci_dependencies.yml --force 
@@ -67,7 +65,7 @@ pipeline {
                     docker build -t $NEXUS_DOCKER_REGISTRY_URL/$IMAGE_NAME:$BUILD_ID ./diabetes_regression/scoring/$ML_IMAGE_FOLDER/ 
                 '''
 
-                withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'nexus-docker-repo',
+                withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: "${NEXUS_DOCKER_CREDENTIALS_NAME}",
                     usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
                         
                     sh '''#!/bin/bash -ex
@@ -81,7 +79,7 @@ pipeline {
             steps {
                 echo "Deploy to Azure App Service"
 
-                withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'nexus-docker-repo',
+                withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: "${NEXUS_DOCKER_CREDENTIALS_NAME}",
                     usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
                         
                     sh '''#!/bin/bash -ex
