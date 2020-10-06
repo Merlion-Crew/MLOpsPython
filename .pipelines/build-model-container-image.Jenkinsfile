@@ -62,16 +62,15 @@ pipeline {
 
                 sh '''#!/bin/bash -ex
                     az acr login --name $ML_CONTAINER_REGISTRY
-                    docker build -t $NEXUS_DOCKER_REPO_HTTP_URL/$IMAGE_NAME:$BUILD_ID ./diabetes_regression/scoring/$ML_IMAGE_FOLDER/ 
+                    docker build -t $NEXUS_DOCKER_REPO_BASE_URL/$IMAGE_NAME:$BUILD_ID ./diabetes_regression/scoring/$ML_IMAGE_FOLDER/ 
                 '''
 
                 withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: "${NEXUS_DOCKER_CREDENTIALS_NAME}",
                     usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
                         
                     sh '''#!/bin/bash -ex
-                        docker login -u $USERNAME --password $PASSWORD http://$NEXUS_DOCKER_REPO_HTTP_URL
-                        docker push $NEXUS_DOCKER_REPO_HTTP_URL/$IMAGE_NAME:$BUILD_ID
-                        
+                        docker login -u $USERNAME --password $PASSWORD https://$NEXUS_DOCKER_REPO_BASE_URL
+                        docker push $NEXUS_DOCKER_REPO_BASE_URL/$IMAGE_NAME:$BUILD_ID
                     '''
                 }
             }
