@@ -14,7 +14,7 @@ import logging
 
 def main():
     e = Env()
-    setup_logging(False)
+    setup_logging(log_to_local_only=True)
 
     # Get Azure machine learning workspace
     aml_workspace = Workspace.get(
@@ -105,7 +105,7 @@ def main():
     pipeline_data = PipelineData(
         "pipeline_data", datastore=aml_workspace.get_default_datastore()
     )
-    
+
     train_step = PythonScriptStep(
         name="Train Model",
         script_name=e.train_script_path,

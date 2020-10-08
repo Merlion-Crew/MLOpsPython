@@ -17,12 +17,12 @@ def setup_logging(log_to_local_only: bool = False, env: Env = None):
     """
     if env is None:
         env = Env()
-    
+
     logging.config.dictConfig(logging_config)
     logger = getLogger()
 
     if not log_to_local_only:
-    # Assumes the environment variable APPLICATIONINSIGHTS_CONNECTION_STRING is already set
+    # Assumes the environment variable APPINSIGHTS_INSTRUMENTATION_KEY is already set
         azure_log_handler = AzureLogHandler(
             instrumentation_key=env.appinsights_instrumentation_key,
             storage_path='logs'

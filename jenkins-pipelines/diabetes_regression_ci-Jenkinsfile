@@ -8,7 +8,8 @@ pipeline {
     agent {
         docker {
             //Azure CLI commands require root privileges
-            image 'mcr.microsoft.com/mlops/python:latest'
+            //Pull down the docker image from Nexus Private Registry and use that image as an agent
+            image '52.175.54.34:8123/mlopspython:latest'
             label 'master'
             args "--user root --privileged"
         }
@@ -18,6 +19,7 @@ pipeline {
         string(name: 'SUBSCRIPTION_ID', defaultValue: '371e8e7f-bce0-4db0-9df5-d88805b41101', description: 'Azure Subscription ID')
         string(name: 'RESOURCE_GROUP', defaultValue: 'swsundar-upskill', description: 'Azure Resource Group Name')
         string(name: 'SERVICE_PRINCIPAL_NAME', defaultValue: 'swsundar-azure-spn', description: 'Azure Service Principal Name')
+        string(name: 'APPINSIGHTS_INSTRUMENTATION_KEY', description: 'Application Insights Instrumentation Key for publishing logs to Azure')
     }
     environment {
         //Pass the Jenkins' Build ID as an environment variable for tracking
