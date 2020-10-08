@@ -8,6 +8,7 @@ pipeline {
         RESOURCE_GROUP          = "${RESOURCE_GROUP}"
         WORKSPACE_NAME          = "${WORKSPACE_NAME}"
         ML_CONTAINER_REGISTRY   = "${ML_CONTAINER_REGISTRY}"
+        DEFAULT_CONDA_ENV_NAME  = 'mlopspython_ci_env'
     }
     stages {
         stage('initialize') {
@@ -42,7 +43,7 @@ pipeline {
                 checkout scm
 
                 sh '''
-                    conda env create --file ./diabetes_regression/ci_dependencies.yml --force 
+                    conda env create --name $DEFAULT_CONDA_ENV_NAME --file ./diabetes_regression/ci_dependencies.yml --force 
                 '''
                 
                 withCredentials([azureServicePrincipal("${AZURE_SP}")]) {
@@ -50,7 +51,7 @@ pipeline {
                         az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET -t $AZURE_TENANT_ID
                         az account set -s $AZURE_SUBSCRIPTION_ID
                         export SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID
-                        source /home/azureuser/anaconda3/bin/activate mlopspython_ci
+                        source /home/azureuser/anaconda3/bin/activate $DEFAULT_CONDA_ENV_NAME
                         python3 -m ml_service.util.create_scoring_image
                     '''
                 }
