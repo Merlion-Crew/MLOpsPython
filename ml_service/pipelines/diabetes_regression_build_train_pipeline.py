@@ -14,7 +14,7 @@ import logging
 
 def main():
     e = Env()
-    setup_logging(log_to_local_only=True)
+    setup_logging(log_to_local_only=False)
 
     # Get Azure machine learning workspace
     aml_workspace = Workspace.get(
