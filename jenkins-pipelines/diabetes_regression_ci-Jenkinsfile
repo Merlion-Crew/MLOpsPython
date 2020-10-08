@@ -26,8 +26,7 @@ pipeline {
     stages {
         stage('Build and Publish AML Pipeline') {
             steps {
-                checkout([$class: 'GitSCM', branches: [[name: '*/master']],
-                    userRemoteConfigs: [[url: 'https://github.com/Merlion-Crew/MLOpsPython.git/']]])
+                checkout scm
 
                 script {
                     echo "Load the variables from the properties file and set them as environment variables\n"
