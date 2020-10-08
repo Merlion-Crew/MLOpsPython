@@ -1,6 +1,6 @@
 numpy==1.18.*
 joblib==0.16.0
-azureml-sdk==1.14.*
-azureml-defaults==1.14.*
+azureml-sdk
+azureml-defaults
 inference-schema[numpy-support]
 sklearn

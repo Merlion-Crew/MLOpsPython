@@ -1,13 +1,14 @@
 pipeline {
     agent { label 'master' }
     environment {
-        ML_IMAGE_FOLDER = 'imagefiles'
-        IMAGE_NAME      = 'mlmodelimage'
-        MODEL_NAME      = "${MODEL_NAME}"
-        SCORE_SCRIPT    = 'scoring/score.py'
-        RESOURCE_GROUP  = "${RESOURCE_GROUP}"
-        WORKSPACE_NAME  = "${WORKSPACE_NAME}"
+        ML_IMAGE_FOLDER         = 'imagefiles'
+        IMAGE_NAME              = "${DOCKER_IMAGE_REPO_NAME}"
+        MODEL_NAME              = "${MODEL_NAME}"
+        SCORE_SCRIPT            = 'scoring/score.py'
+        RESOURCE_GROUP          = "${RESOURCE_GROUP}"
+        WORKSPACE_NAME          = "${WORKSPACE_NAME}"
         ML_CONTAINER_REGISTRY   = "${ML_CONTAINER_REGISTRY}"
+        DEFAULT_CONDA_ENV_NAME  = 'mlopspython_ci_env'
     }
     stages {
         stage('initialize') {
@@ -40,11 +41,9 @@ pipeline {
             steps {
                 echo "Hello docker image build ${env.BUILD_ID}"
                 checkout scm
-                //checkout([$class: 'GitSCM', branches: [[name: '*/ml_model_uc81']],
-                //    userRemoteConfigs: [[url: 'https://github.com/Merlion-Crew/MLOpsPython.git/']]])
 
                 sh '''
-                    conda env create --file ./diabetes_regression/ci_dependencies.yml --force 
+                    conda env create --name $DEFAULT_CONDA_ENV_NAME --file ./diabetes_regression/ci_dependencies.yml --force 
                 '''
                 
                 withCredentials([azureServicePrincipal("${AZURE_SP}")]) {
@@ -52,7 +51,7 @@ pipeline {
                         az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET -t $AZURE_TENANT_ID
                         az account set -s $AZURE_SUBSCRIPTION_ID
                         export SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID
-                        source /home/azureuser/anaconda3/bin/activate mlopspython_ci
+                        source $CONDA_PATH/activate $DEFAULT_CONDA_ENV_NAME
                         python3 -m ml_service.util.create_scoring_image
                     '''
                 }
@@ -64,15 +63,15 @@ pipeline {
 
                 sh '''#!/bin/bash -ex
                     az acr login --name $ML_CONTAINER_REGISTRY
-                    docker build -t $NEXUS_DOCKER_REGISTRY_URL/$IMAGE_NAME:$BUILD_ID ./diabetes_regression/scoring/$ML_IMAGE_FOLDER/ 
+                    docker build -t $NEXUS_DOCKER_REPO_BASE_URL/$IMAGE_NAME:$BUILD_ID ./diabetes_regression/scoring/$ML_IMAGE_FOLDER/ 
                 '''
 
-                withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'nexus-docker-repo',
+                withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: "${NEXUS_DOCKER_CREDENTIALS_NAME}",
                     usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
                         
                     sh '''#!/bin/bash -ex
-                        docker login -u $USERNAME --password $PASSWORD https://$NEXUS_DOCKER_REGISTRY_URL
-                        docker push $NEXUS_DOCKER_REGISTRY_URL/$IMAGE_NAME:$BUILD_ID
+                        docker login -u $USERNAME --password $PASSWORD https://$NEXUS_DOCKER_REPO_BASE_URL
+                        docker push $NEXUS_DOCKER_REPO_BASE_URL/$IMAGE_NAME:$BUILD_ID
                     '''
                 }
             }
@@ -81,7 +80,7 @@ pipeline {
             steps {
                 echo "Deploy to Azure App Service"
 
-                withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'nexus-docker-repo',
+                withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: "${NEXUS_DOCKER_CREDENTIALS_NAME}",
                     usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
                         
                     sh '''#!/bin/bash -ex
