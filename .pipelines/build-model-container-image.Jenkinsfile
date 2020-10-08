@@ -51,7 +51,7 @@ pipeline {
                         az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET -t $AZURE_TENANT_ID
                         az account set -s $AZURE_SUBSCRIPTION_ID
                         export SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID
-                        conda activate $DEFAULT_CONDA_ENV_NAME
+                        source $CONDA_PATH/activate $DEFAULT_CONDA_ENV_NAME
                         python3 -m ml_service.util.create_scoring_image
                     '''
                 }
